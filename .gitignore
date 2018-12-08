@@ -30,3 +30,15 @@
 *.exe
 *.out
 *.app
+*.7z
+*.3dsx
+*.smdh
+*.elf
+*.cia
+*.bat
+
+# Other
+*.bnr
+*.map
+*.lst
+*.icn
