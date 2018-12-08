@@ -3,12 +3,21 @@
 #include <string.h>
 #include <math.h>
 #include <3ds.h>
-//#include "song.cpp"
+
+
+#include <MidiFile.h>
+#include <set>
+#include <utility>
+#include <iostream>
+#include <string.h>
+
+using namespace std;
+using namespace smf;
 
 #define SAMPLERATE 22050
 #define SAMPLESPERBUF (SAMPLERATE / 30)
 #define BYTESPERSAMPLE 4
-#define PI 3.14159
+#define M_PI 3.14159
 
 #define ARRAY_SIZE(array) (sizeof(array)/sizeof(array[0]))
 
@@ -57,7 +66,7 @@ int main(int argc, char **argv) {
 	consoleInit(GFX_TOP, &topScreen);
 	consoleSelect(&topScreen);
 	//song();
-	printf("libctru filtered streamed audio\n");
+//	printf("libctru filtered streamed audio\n");
 
 	u32* audioBuffer = (u32*) linearAlloc(SAMPLESPERBUF * BYTESPERSAMPLE * 2);
 
@@ -122,11 +131,40 @@ int main(int argc, char **argv) {
 	ndspChnWaveBufAdd(0, &waveBuf[0]);
 	ndspChnWaveBufAdd(0, &waveBuf[1]);
 
+/*
 	printf("Press up/down to change tone frequency\n");
 	printf("Press left/right to change filter\n");
 	printf("\x1b[6;1Hnote = %i Hz        ", notefreq[note]);
 	printf("\x1b[7;1Hfilter = %s         ", filter_names[filter]);
-	
+*/
+
+
+	Result rc = romfsInit();
+	if (rc)
+		printf("romfsInit: %08lX\n", rc);
+	else {
+		MidiFile midifile;
+		midifile.read("romfs:/music/m00.mid");
+		if (!midifile.status()) {
+			printf("Could not read MIDI file");
+			return 1;
+		}
+
+		pair<int, int> trackinst;
+		set<pair<int, int>> iset;
+		for (int i=0; i<midifile.getTrackCount(); i++) {
+			for (int j=0; j<midifile[i].getEventCount(); j++) {
+				if (midifile[i][j].isTimbre()) {
+					trackinst.first = i;
+					trackinst.second = midifile[i][j].getP1();
+					iset.insert(trackinst);
+				}
+			}
+		}
+		for (auto it : iset)
+			printf("Track: %d\tInstrument:%d\n", it.first, it.second);
+	}
+  
 	while(aptMainLoop()) {
 
 		gfxSwapBuffers();
