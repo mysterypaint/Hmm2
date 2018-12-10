@@ -2,7 +2,6 @@
 
 #include "PHL.hpp"
 
-//class AssetManager;
 class Game {
 public:
 	enum GameState { INIT, LOGO1, LOGO2, ATTRACT,

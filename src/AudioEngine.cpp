@@ -4,10 +4,10 @@
 #include <iostream>
 #include <string.h>
 #include "AudioEngine.hpp"
-
+#include "AudioResources.hpp"
+#include <vector>
 using namespace std;
 using namespace smf;
-
 
 /*
 
@@ -24,20 +24,22 @@ bool gamePaused = false;
 bool loopBGM = true;
 
 AudioEngine::AudioEngine(void) {
-	InitMIDIChannels(16);
-	string f_in = "romfs:/music/m01.mid";
+	midiChannels = new MIDIChannel[16]; // Create an array of 16 MIDI Channels
+	Startup();
+	string f_in = "romfs:/music/m00.mid";
 	LoadMIDI(f_in.c_str());
 }
 
 AudioEngine::~AudioEngine(void) {
+	delete[] midiChannels;
+}
+
+void AudioEngine::Startup() {
 }
 
 void AudioEngine::Step() {
 	printf("%d                        \033[0;0H", tick);
 	tick++;
-}
-
-void AudioEngine::InitMIDIChannels(int _channelCount) {
 }
 
 void AudioEngine::LoadMIDI(const char* _f_in) {
@@ -48,20 +50,33 @@ void AudioEngine::LoadMIDI(const char* _f_in) {
 		return;
 	}
 
+	vector<MIDIEvent> events;
+	midifile.sortTracks();
+	events.clear();
+
+	printf("\n%d\n", midifile.getTicksPerQuarterNote());
+	int total = 0;
 
 	pair<int, int> trackinst;
 	set<pair<int, int>> iset;
-	for (int i=0; i<midifile.getTrackCount(); i++) {
-		for (int j=0; j<midifile[i].getEventCount(); j++) {
-			if (midifile[i][j].isTimbre()) {
-				trackinst.first = i;
-				trackinst.second = midifile[i][j].getP1();
+	for (int chn = 0; chn < midifile.getTrackCount(); chn++) {
+		for (int ev = 0; ev < midifile[chn].getEventCount(); ev++) {
+			events.push_back(midifile.getEvent(chn, ev));
+			if (midifile[chn][ev].isTimbre()) {
+
+				
+				trackinst.first = chn;
+				trackinst.second = midifile[chn][ev].getP1();
 				iset.insert(trackinst);
 			}
+			//printf("%d\n", midifile[chn][ev].tick);
 		}
 	}
+	//printf("total: %d\n", total);
+	/*
 	for (auto it : iset)
-		printf("Track: %d\tInstrument:%d\n", it.first, it.second);
+		printf("\nTrack: %d\tInstrument:%d", it.first, it.second);
+		*/
 
 
    midifile.doTimeAnalysis();

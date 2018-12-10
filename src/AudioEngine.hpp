@@ -1,6 +1,9 @@
 #pragma once
 
+#include <vector>
+#include <MidiEvent.h>
 #include "PHL.hpp"
+#include "MIDIChannel.hpp"
 
 class AudioEngine {
 public:
@@ -13,8 +16,8 @@ public:
 	static void Step();
 
 	static void LoadMIDI (const char* _f_in);
-	static void InitMIDIChannels(int _channelCount);
 
 private:
 	static AudioState audioState;
+	MIDIChannel* midiChannels;
 };
