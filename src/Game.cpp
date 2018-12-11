@@ -58,13 +58,7 @@ bool Game::IsExiting() {
 		return false;
 }
 
-void Game::Step(u64* frame_time) {
-	printf("Frame Time: %f\n", *frame_time);
-	hidScanInput();
-	u32 kDown = hidKeysHeld();
-		
-	if (kDown & KEY_START)
-		PHL_GameQuit();
+void Game::Step() {
 
 
 	switch(gameState) {
@@ -98,6 +92,11 @@ void Game::Step(u64* frame_time) {
 
 	tick++;
 	printf("\033[0;0H");
+}
+
+void Game::Draw() {
+	PHL_StartDrawing();
+	PHL_EndDrawing();
 }
 
 void Game::GameplayStep() {

@@ -6,6 +6,8 @@ using namespace smf;
 
 class MIDIChannel {
 public:
+	int eventPosition = 0;
+	int eventMax = 0;
 	MIDIChannel();
 	~MIDIChannel();
 	void SetEventPosition(int _val);
@@ -14,7 +16,5 @@ public:
 	int GetEventPosition();
 	int GetEventMax();
 private:
-	int eventPosition = 0;
-	int eventMax = 999999;
 	vector<MidiEvent> events;
 };

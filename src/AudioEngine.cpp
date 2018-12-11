@@ -8,6 +8,7 @@
 #include "AudioResources.hpp"
 #include "MIDIChannel.hpp"
 #include <vector>
+#include <math.h>
 using namespace std;
 using namespace smf;
 
@@ -21,9 +22,10 @@ double ticksPerSecond = ticksPerMinute / 60;
 double samplesPerTick = 44100 / ticksPerSecond;
 
 int* gameTick;
+int songStartTime = 0;
+int songTimePos = 0;
 int songBPM = 0;
 int tickRate = 192;
-int songTick = 0;
 int noteCount = 0;
 float deltaTime = 1.0f;
 bool gamePaused = false;
@@ -50,32 +52,54 @@ void AudioEngine::Startup() {
 }
 
 void AudioEngine::Step() {
-	printf("\nSong Position: %d               ", songTick);
+
+	hidScanInput();
+	u32 kDown = hidKeysHeld();
+		
+	if (kDown & KEY_START)
+		PHL_GameQuit();
+
+
+	printf("\nSong Position: %d               ", songTimePos);
 	int chn = 3;
 
 	int eventPosition = midiChannels[chn].GetEventPosition();
-	int evMax = midiChannels[chn].GetEventMax();
+	int evMax = midiChannels[chn].GetEventMax() - 1;
 
-	if (songTick == midifile[chn][eventPosition].tick) {
+	if (kDown & KEY_B) {
+		midiChannels[chn].SetEventPosition(evMax - 40);
+		songTimePos = midifile[chn][eventPosition % evMax].tick;
+	}
+
+	if (songTimePos >= midifile[chn][eventPosition % evMax].tick) {
+		songTimePos = midifile[chn][eventPosition % evMax].tick;
+		PHL_StopSound(sound[SE00], 1);
 		PHL_PlaySound(sound[SE00], 1);
 		playedNotes++;
 		midiChannels[chn].IncEventPosition();
 		eventPosition = midiChannels[chn].GetEventPosition();
 
-		while(!midifile[chn][eventPosition].isNoteOn()) {
+		while(!midifile[chn][eventPosition].isNoteOn() && eventPosition < evMax) {
 			midiChannels[chn].IncEventPosition();
 			eventPosition = midiChannels[chn].GetEventPosition();
 		}
-		midiChannels[chn].IncEventPosition();
+
+		if ((eventPosition >= evMax - 1) || (kDown & KEY_X)) {
+			midiChannels[chn].SetEventPosition(0);
+			eventPosition = 0;
+			songTimePos = 0;
+			playedNotes = 0;
+		} else
+			midiChannels[chn].IncEventPosition();
 	}
 
-	printf("\nNext event: %d / %d (Tick: %d)          \nPlayed Notes: %d / %d\nTicks per Q-Note: %d", eventPosition, evMax, midifile[chn][eventPosition].tick, playedNotes, noteCount, songBPM);
+	printf("\nNext event: %d / %d (Tick: %d)          \nPlayed Notes: %d / %d\nTicks per Q-Note: %d", eventPosition, evMax, midifile[chn][eventPosition % evMax].tick, playedNotes, noteCount, songBPM);
 
 
 
 /*
 	for (int chn = 0; chn < midifile.getTrackCount(); chn++) {
-		if (midifile[chn][songTick].isNoteOn()) {
+		if (midifile[chn][songTimePos].isNoteOn()) {
 			PHL_PlaySound(sound[SE00], 1);
 		}
 		//printf("%d: %d\n",chn,midiChannels[chn].GetEventMax());
@@ -83,13 +107,15 @@ void AudioEngine::Step() {
 	}
 */
 
-	if (*gameTick % (1) == 0) { // songBPM
-		songTick+=1;
+
+	//songTimePos = (*gameTick - songStartTime);
+	if (fmod(*gameTick, 1) == 0) { // songBPM
+		songTimePos+=32;
 	}
 }
 
 void AudioEngine::LoadMIDI(const char* _f_in) {
-	songTick = 0;
+	songStartTime = *gameTick;
 	midifile.read(_f_in);
 	if (!midifile.status()) {
 		printf("Could not read MIDI file");
@@ -103,7 +129,7 @@ void AudioEngine::LoadMIDI(const char* _f_in) {
 	samplesPerTick = 44100 / ticksPerSecond;
 
 	//printf("\n%d\n", midifile.getTicksPerQuarterNote());
-	int total = 0;
+	//int total = 0;
 
 	pair<int, int> trackinst;
 	set<pair<int, int>> iset;
@@ -138,7 +164,7 @@ void AudioEngine::LoadMIDI(const char* _f_in) {
 
 
    midifile.doTimeAnalysis();
-   midifile.linkNotePairs();
+   //midifile.linkNotePairs();
    //printf("%d", midifile.isAbsoluteTicks());
 
 

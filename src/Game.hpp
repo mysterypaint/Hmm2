@@ -13,7 +13,8 @@ public:
 	static void Startup();
 	static void Ending();
 	static int GetMainLoop();
-	static void Step(u64* frame_time);
+	static void Step();
+	static void Draw();
 	static void GameplayStep();
 private:
 	static bool IsExiting();
