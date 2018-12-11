@@ -1,6 +1,7 @@
 #pragma once
 
 #include "PHL.hpp"
+#include "Resources.hpp"
 
 class Game {
 public:
@@ -12,7 +13,7 @@ public:
 	static void Startup();
 	static void Ending();
 	static int GetMainLoop();
-	static void Step();
+	static void Step(u64* frame_time);
 	static void GameplayStep();
 private:
 	static bool IsExiting();

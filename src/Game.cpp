@@ -8,11 +8,11 @@
 #include "AudioEngine.hpp"
 
 ////// Global vars //////
-
+int tick = 0;
 AudioEngine *audioEngine = nullptr;
 
 //PHL_Music currBGM[1];					// Keeps the current song stream in the memory
-//PHL_Sound sounds[SE_MAX];			// Creates an array that stores every sound in the game
+PHL_Sound sounds[SE_MAX];			// Creates an array that stores every sound in the game
 
 Game::Game(void) {
 	Startup();
@@ -27,7 +27,8 @@ void Game::Startup(void) {
 
 	//Setup
 	PHL_Init();
-	audioEngine = new AudioEngine();
+	sounds[SE00] = PHL_LoadSound("_test");
+	audioEngine = new AudioEngine(sounds, &tick);
 	//PHL_FreeMusic(currBGM[0]);
 	//currBGM[0] = PHL_LoadMusic("m04", loopBGM);
 	//currBGM[0] = PHL_LoadMusic(NULL, loopBGM);
@@ -57,8 +58,8 @@ bool Game::IsExiting() {
 		return false;
 }
 
-void Game::Step() {
-
+void Game::Step(u64* frame_time) {
+	printf("Frame Time: %f\n", *frame_time);
 	hidScanInput();
 	u32 kDown = hidKeysHeld();
 		
@@ -94,6 +95,9 @@ void Game::Step() {
 
 		*/
 	}
+
+	tick++;
+	printf("\033[0;0H");
 }
 
 void Game::GameplayStep() {

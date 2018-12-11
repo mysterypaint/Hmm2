@@ -9,7 +9,7 @@ class AudioEngine {
 public:
 	enum AudioState { INIT, LOADING, PLAYING, PAUSED, ENDING};
 
-	AudioEngine();
+	AudioEngine(PHL_Sound* _sounds, int* _tick);
 	~AudioEngine();
 	static void Startup();
 	static void Ending();
@@ -19,5 +19,5 @@ public:
 
 private:
 	static AudioState audioState;
-	MIDIChannel* midiChannels;
+	//vector<MIDIChannel> midiChannels;
 };
