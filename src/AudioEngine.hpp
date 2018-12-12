@@ -16,7 +16,7 @@ public:
 	static void Step();
 
 	static void LoadMIDI (const char* _f_in);
-
+	static void ProcessMIDIEvent(MidiEvent* _event, int _midiChannel);
 private:
 	static AudioState audioState;
 	//vector<MIDIChannel> midiChannels;
