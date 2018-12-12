@@ -23,7 +23,9 @@ double samplesPerTick = 44100 / ticksPerSecond;
 
 int* gameTick;
 int songStartTime = 0;
-int songTimePos = 0;
+double songTimePos = 0;
+double songDuration = 0;
+double dT = 1/60.0f;
 int songBPM = 0;
 int tickRate = 192;
 int noteCount = 0;
@@ -40,7 +42,7 @@ AudioEngine::AudioEngine(PHL_Sound* _sounds, int* _tick) {
 	midiChannels = new MIDIChannel[17]; // Create an array of 16 MIDI Channels
 	//midiChannels(std::vector<MIDIChannel>(16));
 	Startup();
-	string f_in = "romfs:/music/m00.mid";
+	string f_in = "romfs:/music/m39.mid";
 	LoadMIDI(f_in.c_str());
 }
 
@@ -52,50 +54,43 @@ void AudioEngine::Startup() {
 }
 
 void AudioEngine::Step() {
-
+	bool songReset = false;
 	hidScanInput();
 	u32 kDown = hidKeysHeld();
-		
 	if (kDown & KEY_START)
 		PHL_GameQuit();
 
 
-	printf("\nSong Position: %d               ", songTimePos);
+	printf("\nSong Position: %f               ", songTimePos);
 	int chn = 3;
 
 	int eventPosition = midiChannels[chn].GetEventPosition();
-	int evMax = midiChannels[chn].GetEventMax() - 1;
+	int evMax = midiChannels[chn].GetEventMax();
 
 	if (kDown & KEY_B) {
 		midiChannels[chn].SetEventPosition(evMax - 40);
-		songTimePos = midifile[chn][eventPosition % evMax].tick;
+		songTimePos = midifile[chn][eventPosition % evMax].seconds;
 	}
 
-	if (songTimePos >= midifile[chn][eventPosition % evMax].tick) {
-		songTimePos = midifile[chn][eventPosition % evMax].tick;
-		PHL_StopSound(sound[SE00], 1);
-		PHL_PlaySound(sound[SE00], 1);
-		playedNotes++;
-		midiChannels[chn].IncEventPosition();
-		eventPosition = midiChannels[chn].GetEventPosition();
+	if (songTimePos >= midifile[chn][eventPosition % evMax].seconds) {
 
-		while(!midifile[chn][eventPosition].isNoteOn() && eventPosition < evMax) {
-			midiChannels[chn].IncEventPosition();
-			eventPosition = midiChannels[chn].GetEventPosition();
+		if (midifile[chn][eventPosition].isNoteOn()) {
+			PHL_StopSound(sound[SE00], 1);
+			PHL_PlaySound(sound[SE00], 1);
+			playedNotes++;
+
+			while(!midifile[chn][eventPosition].isNoteOn() && eventPosition < evMax) {
+				midiChannels[chn].IncEventPosition();
+				eventPosition = midiChannels[chn].GetEventPosition();
+			}
 		}
 
-		if ((eventPosition >= evMax - 1) || (kDown & KEY_X)) {
-			midiChannels[chn].SetEventPosition(0);
-			eventPosition = 0;
-			songTimePos = 0;
-			playedNotes = 0;
-		} else
-			midiChannels[chn].IncEventPosition();
+		midiChannels[chn].IncEventPosition();
+
+
 	}
-
-	printf("\nNext event: %d / %d (Tick: %d)          \nPlayed Notes: %d / %d\nTicks per Q-Note: %d", eventPosition, evMax, midifile[chn][eventPosition % evMax].tick, playedNotes, noteCount, songBPM);
-
-
+		
+	printf("\nNext event: %d / %d (Tick: %f)   \nPlayed Notes: %d / %d\nTicks per Q-Note: %d", eventPosition, evMax, midifile[chn][eventPosition % evMax].seconds, playedNotes, noteCount, songBPM);
 
 /*
 	for (int chn = 0; chn < midifile.getTrackCount(); chn++) {
@@ -106,11 +101,25 @@ void AudioEngine::Step() {
 		
 	}
 */
-
-
+	if (!songReset)
+		songTimePos += dT;
 	//songTimePos = (*gameTick - songStartTime);
+	/*
 	if (fmod(*gameTick, 1) == 0) { // songBPM
-		songTimePos+=32;
+		songTimePos+=1;
+	}*/
+
+
+	if (songTimePos + (dT*8) >= songDuration || (kDown & KEY_X)) { // (eventPosition >= evMax - 1)
+		midiChannels[chn].SetEventPosition(0);
+		eventPosition = 0;
+		while(!midifile[chn][eventPosition].isNoteOn() && eventPosition < evMax) {
+			midiChannels[chn].IncEventPosition();
+			eventPosition = midiChannels[chn].GetEventPosition();
+		}
+		songTimePos = 0;
+		playedNotes = 0;
+		songReset = true;
 	}
 }
 
@@ -124,6 +133,7 @@ void AudioEngine::LoadMIDI(const char* _f_in) {
 	midifile.sortTracks();
 
 	songBPM = midifile.getTicksPerQuarterNote();
+	songDuration = midifile.getFileDurationInSeconds();
 	ticksPerMinute = bpm * midifile.getTicksPerQuarterNote();
 	ticksPerSecond = ticksPerMinute / 60;
 	samplesPerTick = 44100 / ticksPerSecond;
@@ -145,15 +155,24 @@ void AudioEngine::LoadMIDI(const char* _f_in) {
 				trackinst.second = midifile[chn][ev].getP1();
 				iset.insert(trackinst);
 			}
-			//printf("%d\n", midifile[chn][ev].tick);
+			//printf("%d\n", midifile[chn][ev].seconds);
 		}
 	}
 
-	for (int ev = 0; ev < midifile[3].getEventCount(); ev++) {
-		if (midifile[3][ev].isNoteOn()) {
+	int chn = 3;
+	int ev = 0;
+	while(!midifile[chn][ev].isNoteOn()) {
+		midiChannels[chn].IncEventPosition();
+		ev++;
+	}
+
+	for (int ev = 0; ev < midifile[chn].getEventCount(); ev++) {
+		if (midifile[chn][ev].isNoteOn()) {
 			noteCount++;
-			//printf("%d\n", midifile[3][ev].tick);
+			//printf("%d\n", midifile[3][ev].seconds);
 		}
+
+
 	}
 
 	//printf("total: %d\n", total);
@@ -166,7 +185,6 @@ void AudioEngine::LoadMIDI(const char* _f_in) {
    midifile.doTimeAnalysis();
    //midifile.linkNotePairs();
    //printf("%d", midifile.isAbsoluteTicks());
-
 
 
 	for (int chn = 0; chn < midifile.getTrackCount(); chn++) {
@@ -187,7 +205,7 @@ void AudioEngine::LoadMIDI(const char* _f_in) {
       //printf("Tick\tSeconds\tDur\tMessage");
       for (int event=0; event<midifile[track].size(); event++) {
 
-         printf("%d", midifile[track][event].tick);
+         printf("%d", midifile[track][event].seconds);
          printf("\t%f", midifile[track][event].seconds);
          printf("\t");
          if (midifile[track][event].isNoteOn())
