@@ -42,7 +42,7 @@ AudioEngine::AudioEngine(PHL_Sound* _sounds, int* _tick) {
 	midiChannels = new MIDIChannel[17]; // Create an array of 16 MIDI Channels
 	//midiChannels(std::vector<MIDIChannel>(16));
 	Startup();
-	string f_in = "romfs:/music/m39.mid";
+	string f_in = "romfs:/music/m02.mid";
 	LoadMIDI(f_in.c_str());
 }
 
@@ -62,7 +62,7 @@ void AudioEngine::Step() {
 
 
 	printf("\nSong Position: %f               ", songTimePos);
-	int chn = 3;
+	int chn = 4;
 
 	int eventPosition = midiChannels[chn].GetEventPosition();
 	int evMax = midiChannels[chn].GetEventMax();
@@ -110,7 +110,7 @@ void AudioEngine::Step() {
 	}*/
 
 
-	if (songTimePos + (dT*8) >= songDuration || (kDown & KEY_X)) { // (eventPosition >= evMax - 1)
+	if (songTimePos + dT >= songDuration || (kDown & KEY_X)) { // (eventPosition >= evMax - 1)
 		midiChannels[chn].SetEventPosition(0);
 		eventPosition = 0;
 		while(!midifile[chn][eventPosition].isNoteOn() && eventPosition < evMax) {
@@ -159,7 +159,7 @@ void AudioEngine::LoadMIDI(const char* _f_in) {
 		}
 	}
 
-	int chn = 3;
+	int chn = 4;
 	int ev = 0;
 	while(!midifile[chn][ev].isNoteOn()) {
 		midiChannels[chn].IncEventPosition();
