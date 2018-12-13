@@ -65,18 +65,23 @@ void AudioEngine::Step() {
 	for (int chn = 0; chn < midifile.getTrackCount(); chn++) {
 
 		int eventPosition = midiChannels[chn].GetEventPosition();
-		int evMax = midiChannels[chn].GetEventMax();
-
+		int evMax = midiChannels[chn].GetEventMax() - 2;
 		if (kDown & KEY_B) {
-			midiChannels[chn].SetEventPosition(evMax - 40);
+			int evMax2;//printf("\033[0;0H");
+			for (int z = 1; z < midifile.getTrackCount(); z++) {
+				evMax2 = midiChannels[z].GetEventMax() - 2;
+				midiChannels[z].SetEventPosition(evMax2 - 90);
+			}
+			evMax = midiChannels[chn].GetEventMax() - 2;
+			eventPosition = midiChannels[chn].GetEventPosition();
 			songTimePos = midifile[chn][eventPosition % evMax].seconds;
 		}
 
 		if (songTimePos >= midifile[chn][eventPosition % evMax].seconds) {
 			while(eventPosition < evMax) {
-				if (songTimePos < midifile[chn][eventPosition].seconds)
+				if (songTimePos < midifile[chn][eventPosition % evMax].seconds)
 					break;
-				ProcessMIDIEvent(&midifile[chn][eventPosition], chn);
+				ProcessMIDIEvent(&midifile[chn][eventPosition % evMax], chn);
 				midiChannels[chn].IncEventPosition();
 				eventPosition = midiChannels[chn].GetEventPosition();
 			}
@@ -108,8 +113,10 @@ void AudioEngine::Step() {
 		for (int chn = 0; chn < midifile.getTrackCount(); chn++) {
 			midiChannels[chn].SetEventPosition(0);
 			int eventPosition = midiChannels[chn].GetEventPosition();
-			int evMax = midiChannels[chn].GetEventMax();
-			while(!midifile[chn][eventPosition].isNoteOn() && eventPosition < evMax) {
+			int evMax = midiChannels[chn].GetEventMax() - 2;
+			while(eventPosition < evMax) {
+				if (midifile[chn][eventPosition % evMax].isNoteOn())
+					break;
 				midiChannels[chn].IncEventPosition();
 				eventPosition = midiChannels[chn].GetEventPosition();
 			}
@@ -143,7 +150,6 @@ void AudioEngine::LoadMIDI(const char* _f_in) {
 	for (int chn = 0; chn < midifile.getTrackCount(); chn++) {
 		midiChannels[chn].SetEventPosition(0);
 		midiChannels[chn].SetEventMax(midifile[chn].getEventCount());
-
 		for (int ev = 0; ev < midifile[chn].getEventCount(); ev++) {
 			if (midifile[chn][ev].isTimbre()) {
 
