@@ -18,7 +18,7 @@ int* gameTick;
 int songStartTime = 0;
 double songTimePos = 0;
 double songDuration = 0;
-double dT = 1/60.0f;
+float dT = 1/60.0f;
 int songBPM = 0;
 int tickRate = 192;
 int noteCount = 0;
@@ -41,14 +41,6 @@ int testNote = 60;
 
 #define ARRAY_SIZE(array) (sizeof(array)/sizeof(array[0]))
 
-const char* filter_names[] = {
-	"None",
-	"Low-Pass",
-	"High-Pass",
-	"Band-Pass",
-	"Notch",
-	"Peaking"
-};
 u32* audioBuffer = (u32*) linearAlloc(SAMPLESPERBUF * BYTESPERSAMPLE * 2);
 bool fillBlock = false;
 int filter = 0;
@@ -56,16 +48,47 @@ ndspWaveBuf waveBuf[2];
 size_t stream_offset = 0;
 
 // audioBuffer is stereo PCM16
-void fill_buffer(void* audioBuffer, size_t offset, size_t size, float frequency) {
+void fill_buffer(void* audioBuffer, size_t offset, size_t size) {
 	u32* dest = (u32*) audioBuffer;
 
-	for (int i = 0; i < size; i++) {
-		// This is a simple sine wave, with a frequency of `frequency` Hz, and an amplitude 30% of maximum.
-		s16 sample = 0.3 * 0x7FFF * sin(frequency * (2 * PI) * (offset + i) / SAMPLERATE);
+	for (size_t streamPos = 0; streamPos < size; streamPos++) {
+		// Prepare a waveform for the output stream
+		s16 outStream = 0;
+
+		for (int chn = 0; chn < midifile.getTrackCount(); chn++) {
+			if (chn != 10) {
+				vector<MIDINote>* activeNotes = midiChannels[chn].GetActiveNotes();
+				size_t size = activeNotes->size();
+				for (size_t aNotes = 0; aNotes < size; aNotes++) {		// For every single note that is currently playing,
+					int _note = activeNotes->at(aNotes).GetNote();		// Grab the frequency of each note
+					float _freq = midiNotes[_note + 12];
+					// This is a simple sine wave, with a frequency of `frequency` Hz, and an amplitude 30% of maximum.
+					outStream += 0.05 * 0x7FFF * sin(_freq * (2 * PI) * (offset + streamPos) / SAMPLERATE);
+				}
+			}
+		}
+		
+
 
 		// Stereo samples are interleaved: left and right channels.
-		dest[i] = (sample << 16) | (sample & 0xffff);
+		dest[streamPos] = (outStream << 16) | (outStream & 0xffff);
+
+
+
 	}
+
+/*
+	// Reverb algorithm
+	int delayMilliseconds = 500; // half a second
+	int delaySamples = 
+	    (int)((float)delayMilliseconds * (SAMPLERATE * 0.001f));
+	float decay = 0.5f;
+	for (int i = 0; i < size - delaySamples; i++)
+	{
+	    // WARNING: overflow potential
+	    dest[i + delaySamples] += (s16)((float)dest[i] * decay);
+	}
+*/
 
 	DSP_FlushDataCache(audioBuffer, size);
 }
@@ -75,6 +98,8 @@ AudioEngine::AudioEngine(PHL_Sound* _sounds, int* _tick) {
 	gameTick = _tick;
 	sound = _sounds;
 	midiChannels = new MIDIChannel[17]; // Create an array of 16 MIDI Channels
+	for (int i = 0; i < 16; i++)
+		midiChannels[i].SetDeltaTimePointer(&dT);
 
 	// Define every MIDI pitch, in terms of Hz
 	int a = 440; // a is 440 hz...
@@ -102,7 +127,7 @@ AudioEngine::AudioEngine(PHL_Sound* _sounds, int* _tick) {
 	waveBuf[1].data_vaddr = &audioBuffer[SAMPLESPERBUF];
 	waveBuf[1].nsamples = SAMPLESPERBUF;
 
-	fill_buffer(audioBuffer,stream_offset, SAMPLESPERBUF * 2, midiNotes[testNote]);
+	fill_buffer(audioBuffer,stream_offset, SAMPLESPERBUF * 2);
 
 	stream_offset += SAMPLESPERBUF;
 
@@ -111,17 +136,9 @@ AudioEngine::AudioEngine(PHL_Sound* _sounds, int* _tick) {
 
 
 
-
-
-
-
-
-
-
-
 	//midiChannels(std::vector<MIDIChannel>(16));
 	Startup();
-	string f_in = "romfs:/music/m13.mid";
+	string f_in = "romfs:/music/m03.mid";
 	LoadMIDI(f_in.c_str());
 }
 
@@ -155,6 +172,18 @@ void AudioEngine::Step() {
 			eventPosition = midiChannels[chn].GetEventPosition();
 			songTimePos = midifile[chn][eventPosition % evMax].seconds;
 		}
+
+
+		midiChannels[chn].UpdateActiveNotes();
+
+
+
+
+
+
+
+
+
 
 		if (songTimePos >= midifile[chn][eventPosition % evMax].seconds) {
 			while(eventPosition < evMax) {
@@ -198,7 +227,7 @@ void AudioEngine::Step() {
 
 	// Streaming time
 	if (waveBuf[fillBlock].status == NDSP_WBUF_DONE) {
-		fill_buffer(waveBuf[fillBlock].data_pcm16, stream_offset, waveBuf[fillBlock].nsamples, midiNotes[testNote]);
+		fill_buffer(waveBuf[fillBlock].data_pcm16, stream_offset, waveBuf[fillBlock].nsamples);
 		ndspChnWaveBufAdd(0, &waveBuf[fillBlock]);
 		stream_offset += waveBuf[fillBlock].nsamples;
 		fillBlock = !fillBlock;
@@ -228,15 +257,15 @@ void AudioEngine::ProcessMIDIEvent(MidiEvent* _event, int _midiChannel) {
 		int key = _event->getKeyNumber();
 		float noteLen = _event->getDurationInSeconds();
 		if (_midiChannel != 10) {
-			midiChannels[_midiChannel].PlayNote(midiNotes[key], noteLen);
+			midiChannels[_midiChannel].PlayNote(key, noteLen);
 		}
-		if (_midiChannel == 3) {
-			printf("Ch%d: %s (%fHz)\n", _midiChannel, NoteName(key), midiNotes[key]);
+		if (_midiChannel == 2) {
+			//printf("Ch%d: %s (%fHz)\nPolyphony: %d", _midiChannel, NoteName(key), midiNotes[key], midiChannels[_midiChannel].GetNoteCount());
 			/*
 			PHL_StopSound(sound[SE00], 1);
 			PHL_PlaySound(sound[SE00], 1);
 			*/
-			testNote = key + 12;
+			testNote = key;
 			playedNotes++;
 		}
 	} else if (_event->isTimbre()) {
