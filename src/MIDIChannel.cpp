@@ -31,12 +31,10 @@ int MIDIChannel::GetEventMax() {
 	return eventMax;
 }
 
-void MIDIChannel::SetNotePlaying(bool _val) {
-	notePlaying = _val;
+void MIDIChannel::PlayNote(float _freq, float _len) {
+	return;
 }
-bool MIDIChannel::GetNotePlaying() {
-	return notePlaying;
-}
+
 void MIDIChannel::SetNoteVelocity(int _val) {
 	noteVelocity = _val;
 }
@@ -55,9 +53,9 @@ void MIDIChannel::SetInstrument(int _val) {
 int MIDIChannel::GetInstrument() {
 	return instrument;
 }
-void MIDIChannel::SetPitch(int _val) {
-	pitch = _val;
+void MIDIChannel::SetPitchBend(int _val) {
+	pitchBend = _val;
 }
-int MIDIChannel::GetPitch() {
-	return pitch;
+int MIDIChannel::GetPitchBend() {
+	return pitchBend;
 }

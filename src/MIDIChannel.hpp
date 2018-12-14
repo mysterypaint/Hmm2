@@ -16,21 +16,20 @@ public:
 	int GetEventPosition();
 	int GetEventMax();
 
-	void SetNotePlaying(bool _val);
-	bool GetNotePlaying();
+	void PlayNote(float _freq, float _len);
 	void SetNoteVelocity(int _val);
 	int GetNoteVelocity();
 	void SetChnVolume(int _val);
 	int GetChnVolume();
 	void SetInstrument(int _val);
 	int GetInstrument();
-	void SetPitch(int _val);
-	int GetPitch();
+	void SetPitchBend(int _val);
+	int GetPitchBend();
 private:
 	bool notePlaying = false;
 	int noteVelocity = 0;
 	int channelVolume = 0;
 	int instrument = 0;
-	int pitch = 0;
+	int pitchBend = 0;
 	vector<MidiEvent> events;
 };

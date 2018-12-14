@@ -8,7 +8,7 @@ const int MODE_NDSP = 1,
 
 int audioMode = 0;
 
-ndspWaveBuf waveBuf[6]; // One for each channel?
+ndspWaveBuf waveBuff[6]; // One for each channel?
 
 PHL_Sound loadWav(char* fname);
 PHL_Music loadRaw(char* fname, u32 sampleRate, u32 bitsPerSample, u16 numChannels, u8 loop);
@@ -196,14 +196,14 @@ void PHL_PlayMusic(PHL_Music snd) {
 			ndspChnSetFormat(0, snd.ndspFormat);
 			
 			
-			memset(&waveBuf[0], 0, sizeof(ndspWaveBuf));
-			waveBuf[0].data_vaddr = (u32 *)(snd.data);
-			waveBuf[0].nsamples = snd.dataSize / (snd.bitsPerSample >> 3) / snd.numChannels;
-			waveBuf[0].looping = snd.loop;
-			waveBuf[0].status = NDSP_WBUF_FREE;
+			memset(&waveBuff[0], 0, sizeof(ndspWaveBuf));
+			waveBuff[0].data_vaddr = (u32 *)(snd.data);
+			waveBuff[0].nsamples = snd.dataSize / (snd.bitsPerSample >> 3) / snd.numChannels;
+			waveBuff[0].looping = snd.loop;
+			waveBuff[0].status = NDSP_WBUF_FREE;
 			
 			DSP_FlushDataCache(snd.data, snd.dataSize);
-			ndspChnWaveBufAdd(0, &waveBuf[0]);
+			ndspChnWaveBufAdd(0, &waveBuff[0]);
 		}
 		
 		else if (audioMode == MODE_CSND) {
@@ -227,14 +227,14 @@ void PHL_PlaySound(PHL_Sound snd, int channel) {
 			ndspChnSetFormat(channel, snd.ndspFormat);
 			
 			
-			memset(&waveBuf[channel], 0, sizeof(ndspWaveBuf));
-			waveBuf[channel].data_vaddr = (u32 *)(snd.data);
-			waveBuf[channel].nsamples = snd.dataSize / (snd.bitsPerSample >> 3) / snd.numChannels;
-			waveBuf[channel].looping = false;
-			waveBuf[channel].status = NDSP_WBUF_FREE;
+			memset(&waveBuff[channel], 0, sizeof(ndspWaveBuf));
+			waveBuff[channel].data_vaddr = (u32 *)(snd.data);
+			waveBuff[channel].nsamples = snd.dataSize / (snd.bitsPerSample >> 3) / snd.numChannels;
+			waveBuff[channel].looping = false;
+			waveBuff[channel].status = NDSP_WBUF_FREE;
 			
 			DSP_FlushDataCache(snd.data, snd.dataSize);
-			ndspChnWaveBufAdd(channel, &waveBuf[channel]);
+			ndspChnWaveBufAdd(channel, &waveBuff[channel]);
 		}
 		
 		else if (audioMode == MODE_CSND) {
