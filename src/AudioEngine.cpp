@@ -9,6 +9,9 @@
 #include "MIDIChannel.hpp"
 #include <vector>
 #include <math.h>
+
+#include <stdio.h>
+#include <stdlib.h>
 const double PI = 3.14159265358979;
 
 using namespace std;
@@ -22,6 +25,7 @@ float dT = 1/60.0f;
 int songBPM = 0;
 int tickRate = 192;
 int noteCount = 0;
+int trackCount = 0;
 bool gamePaused = false;
 bool loopBGM = true;
 PHL_Sound* sound;
@@ -33,7 +37,7 @@ int playedNotes = 0;
 float midiNotes[127];
 
 
-int testNote = 60;
+int selectedSong = 0;
 
 #define SAMPLERATE 48000
 #define SAMPLESPERBUF (SAMPLERATE / 30)
@@ -55,26 +59,19 @@ void fill_buffer(void* audioBuffer, size_t offset, size_t size) {
 		// Prepare a waveform for the output stream
 		s16 outStream = 0;
 
-		for (int chn = 0; chn < midifile.getTrackCount(); chn++) {
-			if (chn != 10) {
+		for (int chn = 0; chn < trackCount; chn++) {
+			if (chn != 11) {
 				vector<MIDINote>* activeNotes = midiChannels[chn].GetActiveNotes();
-				size_t size = activeNotes->size();
-				for (size_t aNotes = 0; aNotes < size; aNotes++) {		// For every single note that is currently playing,
-					int _note = activeNotes->at(aNotes).GetNote();		// Grab the frequency of each note
+				for (auto aNotes = activeNotes->begin(); aNotes != activeNotes->end(); ++aNotes) {		// For every single note that is currently playing,
+					int _note = aNotes->GetNote();		// Grab the frequency of each note
 					float _freq = midiNotes[_note + 12];
 					// This is a simple sine wave, with a frequency of `frequency` Hz, and an amplitude 30% of maximum.
-					outStream += 0.05 * 0x7FFF * sin(_freq * (2 * PI) * (offset + streamPos) / SAMPLERATE);
+					outStream += 0.1 * 0x7FFF * sin(_freq * (2 * PI) * (offset + streamPos) / SAMPLERATE);
 				}
 			}
 		}
-		
-
-
 		// Stereo samples are interleaved: left and right channels.
 		dest[streamPos] = (outStream << 16) | (outStream & 0xffff);
-
-
-
 	}
 
 /*
@@ -138,7 +135,49 @@ AudioEngine::AudioEngine(PHL_Sound* _sounds, int* _tick) {
 
 	//midiChannels(std::vector<MIDIChannel>(16));
 	Startup();
-	string f_in = "romfs:/music/m03.mid";
+
+
+	printf("Left/Right: Move 1\nUp/Down: Move 10\nA: Select song\n\n%d: %s\033[0;0H", selectedSong, songNamesEN[jukeboxOrder[selectedSong]]);
+
+	while(true) {
+		hidScanInput();
+		u32 kDown = hidKeysDown();
+		if (kDown & KEY_UP) {
+			consoleClear();
+			selectedSong -= 10;
+		} else if (kDown & KEY_DOWN) {
+			consoleClear();
+			selectedSong += 10;
+		} else if (kDown & KEY_LEFT) {
+			consoleClear();
+			selectedSong -= 1;
+		} else if (kDown & KEY_RIGHT) {
+			consoleClear();
+			selectedSong += 1;
+		}
+		if (selectedSong < 0)
+			selectedSong = ARRAY_SIZE(songNamesEN) - 1;
+		else if (selectedSong > ARRAY_SIZE(songNamesEN) - 1)
+			selectedSong = 0;
+
+		if (kDown & KEY_A)
+			break;
+
+		printf("Left/Right: Move 1\nUp/Down: Move 10\nA: Select song\n\n%d: %s\033[0;0H", selectedSong, songNamesEN[jukeboxOrder[selectedSong]]);
+	}
+	consoleClear();
+
+	string num = "";
+	if (jukeboxOrder[selectedSong] < 10)
+		num += '0';
+
+  	char buffer [50];
+	sprintf(buffer, "%d", jukeboxOrder[selectedSong]);
+	//num += '3';
+	num += buffer;
+
+	string f_in = "romfs:/music/m" + num + ".mid";
+	printf("Playing: %s\n\nFile: %s", songNamesEN[jukeboxOrder[selectedSong]], f_in.c_str());
 	LoadMIDI(f_in.c_str());
 }
 
@@ -158,13 +197,13 @@ void AudioEngine::Step() {
 
 	//printf("\nSong Position: %f               ", songTimePos);
 
-	for (int chn = 0; chn < midifile.getTrackCount(); chn++) {
+	for (int chn = 0; chn < trackCount; chn++) {
 
 		int eventPosition = midiChannels[chn].GetEventPosition();
 		int evMax = midiChannels[chn].GetEventMax();
 		if (kDown & KEY_B) {
 			int evMax2;
-			for (int z = 0; z < midifile.getTrackCount(); z++) {
+			for (int z = 0; z < trackCount; z++) {
 				evMax2 = midiChannels[z].GetEventMax();
 				midiChannels[z].SetEventPosition(evMax2 - 90);
 			}
@@ -207,7 +246,7 @@ void AudioEngine::Step() {
 		songTimePos += dT;
 
 	if (songTimePos >= songDuration || (kDown & KEY_X)) { // (eventPosition >= evMax - 1)
-		for (int chn = 0; chn < midifile.getTrackCount(); chn++) {
+		for (int chn = 0; chn < trackCount; chn++) {
 			midiChannels[chn].SetEventPosition(0);
 			int eventPosition = midiChannels[chn].GetEventPosition();
 			int evMax = midiChannels[chn].GetEventMax();
@@ -243,6 +282,8 @@ void AudioEngine::LoadMIDI(const char* _f_in) {
 	}
 	midifile.sortTracks();
 	songDuration = midifile.getFileDurationInSeconds();
+	trackCount = midifile.getTrackCount();
+
 	for (int chn = 0; chn < midifile.getTrackCount(); chn++) {
 		midiChannels[chn].SetEventPosition(0);
 		midiChannels[chn].SetEventMax(midifile[chn].getEventCount());
@@ -265,7 +306,7 @@ void AudioEngine::ProcessMIDIEvent(MidiEvent* _event, int _midiChannel) {
 			PHL_StopSound(sound[SE00], 1);
 			PHL_PlaySound(sound[SE00], 1);
 			*/
-			testNote = key;
+
 			playedNotes++;
 		}
 	} else if (_event->isTimbre()) {

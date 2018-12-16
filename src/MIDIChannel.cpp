@@ -6,6 +6,7 @@
 using namespace std;
 
 MIDIChannel::MIDIChannel() {
+	activeNotes.reserve(4); // No more than 4 notes can be played at a time per MIDI channel.
 }
 
 MIDIChannel::~MIDIChannel() {
@@ -37,7 +38,7 @@ int MIDIChannel::GetEventMax() {
 
 void MIDIChannel::PlayNote(float _freq, float _len) {
 	MIDINote newNote(_freq, _len);
-	activeNotes.push_back(newNote);
+	activeNotes.emplace_back(newNote);
 }
 
 void MIDIChannel::SetNoteVelocity(int _val) {
@@ -67,11 +68,12 @@ int MIDIChannel::GetPitchBend() {
 
 void MIDIChannel::UpdateActiveNotes() {
 	size_t size = activeNotes.size();
-	for (size_t i = 0; i < size; i++) {		// For every single note that is currently playing,
+	for (size_t i = 0; i < size; i++) {						// For every single note that is currently playing,
 		float _val = activeNotes[i].GetNoteLifetime();		// Grab the lifetime of each note
 		activeNotes[i].SetNoteLifetime(_val - *dT);			// As the song is running, subtract from the note's lifetime until it's time to delete it
 		if (activeNotes[i].GetNoteLifetime() <= 0.0f) {		// If the life of the note's playtime is <= 0...
 			activeNotes.erase(activeNotes.begin()+i);		// Remove the note's reference from the vector of notes (delete the object, too)
+			activeNotes.shrink_to_fit();
 		}
 	}
 }
@@ -85,6 +87,7 @@ void MIDIChannel::ResetChannel() {
 	size_t size = activeNotes.size();
 	for (size_t i = 0; i < size; i++) {
 		activeNotes.erase(activeNotes.begin()+i);
+		activeNotes.shrink_to_fit();
 	}
 }
 
