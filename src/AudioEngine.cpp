@@ -39,7 +39,7 @@ float midiNotes[127];
 
 int selectedSong = 0;
 
-#define SAMPLERATE 48000
+#define SAMPLERATE 16000
 #define SAMPLESPERBUF (SAMPLERATE / 30)
 #define BYTESPERSAMPLE 4
 
@@ -62,7 +62,9 @@ void fill_buffer(void* audioBuffer, size_t offset, size_t size) {
 		for (int chn = 0; chn < trackCount; chn++) {
 			if (chn != 11) {
 				vector<MIDINote>* activeNotes = midiChannels[chn].GetActiveNotes();
-				for (auto aNotes = activeNotes->begin(); aNotes != activeNotes->end(); ++aNotes) {		// For every single note that is currently playing,
+				auto begin = activeNotes->begin();
+				auto end = activeNotes->end();
+				for (auto aNotes = begin; aNotes != end; ++aNotes) {		// For every single note that is currently playing,
 					int _note = aNotes->GetNote();		// Grab the frequency of each note
 					float _freq = midiNotes[_note + 12];
 					// This is a simple sine wave, with a frequency of `frequency` Hz, and an amplitude 30% of maximum.
